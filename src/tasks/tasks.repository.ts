@@ -13,7 +13,7 @@ export class TasksRepository extends Repository<Task> {
   constructor(private dataSource: DataSource) {
     super(Task, dataSource.createEntityManager());
   }
- 
+
   async createTask(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
     const { title, description } = createTaskDto;
     const task = this.create({
@@ -31,19 +31,23 @@ export class TasksRepository extends Repository<Task> {
     const query = this.createQueryBuilder('task').where({ user });
 
     if (search) {
-        query.andWhere(
-            '(LOWER(task.description) LIKE LOWER(:search) OR LOWER(task.title) LIKE LOWER(:search))', {search: `%${search}%`}
-        );
+      query.andWhere(
+        '(LOWER(task.description) LIKE LOWER(:search) OR LOWER(task.title) LIKE LOWER(:search))',
+        { search: `%${search}%` },
+      );
     }
     if (status) {
-        query.andWhere('task.status = :status', {status});
+      query.andWhere('task.status = :status', { status });
     }
-    
+
     try {
       const tasks = await query.getMany();
       return tasks;
     } catch (error) {
-      this.logger.error(`Failed to get tasks for user: ${ user.username }. Filters: ${ JSON.stringify(filterDto) }`, error.stack);
+      this.logger.error(
+        `Failed to get tasks for user: ${user.username}. Filters: ${JSON.stringify(filterDto)}`,
+        error.stack,
+      );
       throw new InternalServerErrorException();
     }
   }

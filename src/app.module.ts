@@ -24,9 +24,9 @@ import { configValidationSchema } from './config.schema';
         database: configService.get('DB_DATABASE'),
         autoLoadEntities: true,
         synchronize: true,
-      })
+      }),
     }),
-    AuthModule
+    AuthModule,
   ],
 })
 export class AppModule {}

@@ -29,6 +29,8 @@ jobs:
 
       - name: Run Unit Tests
         run: yarn test
+        env:
+          STAGE: dev
 
       - name: Build Project
         run: yarn build

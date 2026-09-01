@@ -1,4 +1,4 @@
-name: Continuous Integration (CI)
+name: Continuous Integration and Deployment (CI/CD)
 
 on:
   push:
@@ -34,3 +34,31 @@ jobs:
 
       - name: Build Project
         run: yarn build
+
+      - name: Save build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-folder
+          path: dist/
+  deploy:
+      name: Deploy to EC2
+      needs: validate
+      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      runs-on: ubuntu-latest 
+      steps:
+        - name: Install SSH Key
+          uses: shimataro/ssh-key-action@v2
+          with:
+            key: ${{ secrets.SSH_PRIVATE_KEY }}
+            known_hosts: ${{ secrets.SSH_HOST }}
+        - name: Adding Known Hosts
+          run: ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+        - name: Download build artifact
+          uses: actions/download-artifact@v8
+          with:
+            name: dist-folder
+            path: dist/
+        - name: Deploy with rsync
+          run: rsync -avz ./dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/ubuntu/nestjs-task-management/dist/
+        - name: Restart Application
+          run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'pm2 restart app'

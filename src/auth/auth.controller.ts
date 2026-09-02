@@ -20,6 +20,6 @@ export class AuthController {
   
   @Get('/alex')
   getAlexEndpoint(){
-    return "No me crees? Pues flipa";
+    return "Soy un cowboy y no escucho a Alex";
   }
 }

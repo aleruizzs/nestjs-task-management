@@ -2,9 +2,11 @@ FROM node:22-slim
 
 WORKDIR /app
 
+RUN corepack enable pnpm
+
 COPY . .
 
-RUN npm install
-RUN npm run build
+RUN pnpm install
+RUN pnpm run build
 
-CMD ["npm", "run", "start:prod"]
+CMD ["pnpm", "run", "start:prod"]

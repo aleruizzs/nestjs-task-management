@@ -43,7 +43,7 @@ jobs:
   deploy:
       name: Build Docker Image
       needs: validate
-      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/CD-Improved' && github.event_name == 'push'
       runs-on: ubuntu-latest  
       steps:  
           - name: Checkout
@@ -56,11 +56,9 @@ jobs:
               aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
               aws-region: ${{secrets.AWS_REGION}}
 
-
           - name: Login to Amazon ECR
             id: login-pf-aws-ecr
             uses: aws-actions/amazon-ecr-login@v1
-            
 
           - name: Build and push the tagged docker image to Amazon ECR
             env:
@@ -70,3 +68,15 @@ jobs:
             run: |
               docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
               docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+          - name: Deploy to EC2 via SSM
+            uses: nohmad/aws-ssm-send-command-action@master
+            with:
+              aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+              aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+              aws-region: ${{ secrets.AWS_REGION }}
+              targets: |
+                [{"Key":"InstanceIds","Values":["${{ secrets.EC2_INSTANCE_ID }}"]}]
+              document-name: AWS-RunShellScript
+              parameters: |
+                {"commands":["/home/ubuntu/deploy.sh"]}

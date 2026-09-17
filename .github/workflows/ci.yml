@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ '**' ]
 
+permissions:
+  id-token: write 
+  contents: read
 jobs:
   validate:
     name: Lint, Test & Build
@@ -44,11 +47,7 @@ jobs:
       name: Build Docker Image
       needs: validate
       if: github.ref == 'refs/heads/CD-Improved' && github.event_name == 'push'
-      runs-on: ubuntu-latest  
-
-      permissions:
-        id-token: write 
-        contents: read
+      runs-on: ubuntu-latest
 
       steps:  
           - name: Checkout

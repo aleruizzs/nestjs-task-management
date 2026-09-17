@@ -45,6 +45,11 @@ jobs:
       needs: validate
       if: github.ref == 'refs/heads/CD-Improved' && github.event_name == 'push'
       runs-on: ubuntu-latest  
+
+      permissions:
+        id-token: write 
+        contents: read
+
       steps:  
           - name: Checkout
             uses: actions/checkout@v7   
@@ -52,8 +57,7 @@ jobs:
           - name: Setup AWS ECR Details
             uses: aws-actions/configure-aws-credentials@v6
             with:
-              aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-              aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+              role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
               aws-region: ${{secrets.AWS_REGION}}
 
           - name: Login to Amazon ECR
@@ -70,13 +74,9 @@ jobs:
               docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
           - name: Deploy to EC2 via SSM
-            uses: nohmad/aws-ssm-send-command-action@master
-            with:
-              aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-              aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-              aws-region: ${{ secrets.AWS_REGION }}
-              targets: |
-                [{"Key":"InstanceIds","Values":["${{ secrets.EC2_INSTANCE_ID }}"]}]
-              document-name: AWS-RunShellScript
-              parameters: |
-                {"commands":["/home/ubuntu/deploy.sh"]}
+            run: |
+              aws ssm send-command \
+                --region ${{ secrets.AWS_REGION }} \
+                --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+                --document-name "AWS-RunShellScript" \
+                --parameters 'commands=["/home/ubuntu/deploy.sh"]'

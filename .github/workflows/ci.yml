@@ -3,6 +3,8 @@ name: Continuous Integration and Deployment (CI/CD)
 on:
   push:
     branches: [ '**' ]
+    tags:
+      - 'v*.*.*'
   pull_request:
     branches: [ '**' ]
 
@@ -44,9 +46,9 @@ jobs:
           name: dist-folder
           path: dist/
   deploy:
-      name: Build Docker Image
+      name: Deploy Release to EC2
       needs: validate
-      if: github.ref == 'refs/heads/CD-Improved' && github.event_name == 'push'
+      if: startsWith(github.ref, 'refs/tags/v')
       runs-on: ubuntu-latest
 
       steps:  
@@ -67,15 +69,31 @@ jobs:
             env:
               ECR_REGISTRY: ${{ steps.login-pf-aws-ecr.outputs.registry }}
               ECR_REPOSITORY: ${{secrets.AWS_ECR_REPO}}
-              IMAGE_TAG: latest
+              IMAGE_TAG: ${{ github.ref_name }}
             run: |
-              docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+              docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
               docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+              docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
           - name: Deploy to EC2 via SSM
+            env:
+              IMAGE_TAG: ${{ github.ref_name }}
             run: |
-              aws ssm send-command \
+              CMD_ID=$(aws ssm send-command \
                 --region ${{ secrets.AWS_REGION }} \
                 --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
                 --document-name "AWS-RunShellScript" \
-                --parameters 'commands=["/home/ubuntu/deploy.sh"]'
+                --parameters "commands=[\"/home/ubuntu/deploy.sh $IMAGE_TAG\"]" \
+                --query "Command.CommandId" --output text)
+
+              echo "Deployment command sent: $CMD_ID for version $IMAGE_TAG. Waiting for completion..."
+              aws ssm wait command-executed \
+                --region ${{ secrets.AWS_REGION }} \
+                --command-id "$CMD_ID" \
+                --instance-id "${{ secrets.EC2_INSTANCE_ID }}"
+
+              aws ssm get-command-invocation \
+                --region ${{ secrets.AWS_REGION }} \
+                --command-id "$CMD_ID" \
+                --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+                --query "StandardOutputContent" --output text

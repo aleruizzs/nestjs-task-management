@@ -55,24 +55,30 @@ resource "aws_instance" "ec2_instance" {
               ./aws/install
               rm -rf aws awscliv2.zip
 
-              aws ssm get-parameter --region ${var.aws_region} --name "/nestjs/env" --with-decryption --query "Parameter.Value" --output text \
-                | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' > /home/ubuntu/.env.stage.prod
-              chown ubuntu:ubuntu /home/ubuntu/.env.stage.prod
-
-              cat << EOF_DEPLOY > /home/ubuntu/deploy.sh
+              cat << 'EOF_DEPLOY' > /home/ubuntu/deploy.sh
               #!/usr/bin/env bash
               set -e
 
-              REGION=${var.aws_region}
-              ACCOUNT=${var.account_id}
-              REPO=${var.ecr_repo_name}
-              REGISTRY="$ACCOUNT.dkr.ecr.$REGION.amazonaws.com"
-              IMAGE="$REGISTRY/$REPO:latest"
+              if [ -z "$1" ]; then
+                echo "ERROR: You must specify the image tag to deploy (/home/ubuntu/deploy.sh v1.0.0)"
+                exit 1
+              fi
 
-              aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $REGISTRY
-              docker pull $IMAGE
+              TAG="$1"
+              REGION="${var.aws_region}"
+              ACCOUNT="${var.account_id}"
+              REPO="${var.ecr_repo_name}"
+              REGISTRY="$ACCOUNT.dkr.ecr.$REGION.amazonaws.com"
+              IMAGE="$REGISTRY/$REPO:$TAG"
+
+              aws ssm get-parameter --region "$REGION" --name "/nestjs/env" --with-decryption --query "Parameter.Value" --output text \
+                | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' > /home/ubuntu/.env.stage.prod
+              chown ubuntu:ubuntu /home/ubuntu/.env.stage.prod
+
+              aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$REGISTRY"
+              docker pull "$IMAGE"
               docker rm -f demo-app || true
-              docker run -d --name demo-app --restart always -p 3000:3000 --env-file /home/ubuntu/.env.stage.prod $IMAGE
+              docker run -d --name demo-app --restart always -p 3000:3000 --env-file /home/ubuntu/.env.stage.prod "$IMAGE"
               EOF_DEPLOY
 
               chmod +x /home/ubuntu/deploy.sh

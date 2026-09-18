@@ -1,0 +1,15 @@
+variable "project_name" {
+  type = string
+  description = "Short name of the project, will be used to prefix created resources"
+}
+
+variable "ecr_repo_name" {
+  type = string
+  description = "Short name of the repository, will be used to name the created resources"
+}
+
+variable "image_mutability" {
+  description = "Provide image mutability"
+  type = string
+  default = "MUTABLE"
+}

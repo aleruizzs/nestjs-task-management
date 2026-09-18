@@ -15,7 +15,10 @@ resource "aws_iam_role" "github_actions_role" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:aleruizzs/nestjs-task-management:*"
+            "token.actions.githubusercontent.com:sub" = [
+              "repo:aleruizzs/nestjs-task-management:*",
+              "repo:aleruizzs@*/nestjs-task-management@*:*"
+            ]
           }
         }
       }
